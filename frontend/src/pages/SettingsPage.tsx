@@ -7,8 +7,62 @@ import { User, CreditCard, Bell, Shield } from 'lucide-react';
 import { RegisterDeviceModal } from '@/components/device/RegisterDeviceModal';
 import { ChangePasswordModal } from '@/components/security/ChangePasswordModal';
 import { TwoFactorModal } from '@/components/security/TwoFactorModal';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { notificationAPI, fleetAPI } from '@/lib/api';
+import { toast } from 'sonner';
+import { useState } from 'react';
 
 const SettingsPage = () => {
+  const queryClient = useQueryClient();
+  const [isSaving, setIsSaving] = useState(false);
+  
+  // Fetch notification preferences
+  const { data: preferences, isLoading: prefsLoading } = useQuery({
+    queryKey: ['notification-preferences'],
+    queryFn: notificationAPI.getPreferences,
+  });
+  
+  // Fetch fleet status for subscription display
+  const { data: fleetStatus } = useQuery({
+    queryKey: ['fleet-status'],
+    queryFn: fleetAPI.getStatus,
+  });
+  
+  // Mutation for updating preferences
+  const updatePreferencesMutation = useMutation({
+    mutationFn: notificationAPI.updatePreferences,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notification-preferences'] });
+      toast.success('Preferences Updated', {
+        description: 'Your notification preferences have been saved.',
+      });
+      setIsSaving(false);
+    },
+    onError: () => {
+      toast.error('Update Failed', {
+        description: 'Failed to update notification preferences. Please try again.',
+      });
+      setIsSaving(false);
+    },
+  });
+  
+  const handleTogglePreference = (key: 'weight_limit_alerts' | 'device_offline_alerts' | 'weekly_reports') => {
+    if (!preferences) return;
+    
+    setIsSaving(true);
+    updatePreferencesMutation.mutate({
+      [key]: !preferences[key],
+    });
+  };
+  
+  const handleManageSubscription = () => {
+    toast.info('Subscription Management', {
+      description: 'Redirecting to Paystack subscription portal...',
+      duration: 3000,
+    });
+    // TODO: Integrate with Paystack customer portal
+    // window.location.href = `https://paystack.com/manage/${paystackCustomerCode}`;
+  };
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -104,8 +158,16 @@ const SettingsPage = () => {
             </div>
           </div>
           
-          <div className="pt-4">
-            <Button variant="outline">Manage Subscription</Button>
+          <div className="pt-4 flex gap-3">
+            <Button variant="outline" onClick={handleManageSubscription}>
+              Manage Subscription
+            </Button>
+            {fleetStatus && fleetStatus.total_devices > 0 && (
+              <div className="text-sm text-slate-600 flex items-center">
+                <span className="font-medium">Monthly Cost:</span>
+                <span className="ml-2">NGN {fleetStatus.total_monthly_cost.toLocaleString()}</span>
+              </div>
+            )}
           </div>
         </div>
       </Card>
@@ -118,29 +180,55 @@ const SettingsPage = () => {
         </div>
         
         <div className="space-y-4">
-          <div className="flex items-center justify-between py-3 border-b border-slate-200">
-            <div>
-              <p className="font-medium text-slate-900">Weight Limit Alerts</p>
-              <p className="text-sm text-slate-500">Get notified when vehicles approach weight limits</p>
-            </div>
-            <input type="checkbox" defaultChecked className="w-5 h-5" />
-          </div>
-          
-          <div className="flex items-center justify-between py-3 border-b border-slate-200">
-            <div>
-              <p className="font-medium text-slate-900">Device Offline Alerts</p>
-              <p className="text-sm text-slate-500">Alert when a device goes offline</p>
-            </div>
-            <input type="checkbox" defaultChecked className="w-5 h-5" />
-          </div>
-          
-          <div className="flex items-center justify-between py-3">
-            <div>
-              <p className="font-medium text-slate-900">Weekly Reports</p>
-              <p className="text-sm text-slate-500">Receive weekly fleet performance summaries</p>
-            </div>
-            <input type="checkbox" className="w-5 h-5" />
-          </div>
+          {prefsLoading ? (
+            <div className="text-center py-8 text-slate-500">Loading preferences...</div>
+          ) : preferences ? (
+            <>
+              <div className="flex items-center justify-between py-3 border-b border-slate-200">
+                <div>
+                  <p className="font-medium text-slate-900">Weight Limit Alerts</p>
+                  <p className="text-sm text-slate-500">Get notified when vehicles approach weight limits</p>
+                </div>
+                <input 
+                  type="checkbox" 
+                  checked={preferences.weight_limit_alerts}
+                  onChange={() => handleTogglePreference('weight_limit_alerts')}
+                  disabled={isSaving}
+                  className="w-5 h-5 cursor-pointer disabled:opacity-50" 
+                />
+              </div>
+              
+              <div className="flex items-center justify-between py-3 border-b border-slate-200">
+                <div>
+                  <p className="font-medium text-slate-900">Device Offline Alerts</p>
+                  <p className="text-sm text-slate-500">Alert when a device goes offline</p>
+                </div>
+                <input 
+                  type="checkbox" 
+                  checked={preferences.device_offline_alerts}
+                  onChange={() => handleTogglePreference('device_offline_alerts')}
+                  disabled={isSaving}
+                  className="w-5 h-5 cursor-pointer disabled:opacity-50" 
+                />
+              </div>
+              
+              <div className="flex items-center justify-between py-3">
+                <div>
+                  <p className="font-medium text-slate-900">Weekly Reports</p>
+                  <p className="text-sm text-slate-500">Receive weekly fleet performance summaries</p>
+                </div>
+                <input 
+                  type="checkbox" 
+                  checked={preferences.weekly_reports}
+                  onChange={() => handleTogglePreference('weekly_reports')}
+                  disabled={isSaving}
+                  className="w-5 h-5 cursor-pointer disabled:opacity-50" 
+                />
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-8 text-slate-500">Failed to load preferences</div>
+          )}
         </div>
       </Card>
       

@@ -218,3 +218,89 @@ func (h *AuthHandler) validateLogin(req *LoginRequest) []map[string]interface{} 
 func isValidEmail(email string) bool {
 	return strings.Contains(email, "@") && strings.Contains(email, ".")
 }
+
+// ChangePasswordRequest represents the password change request payload
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
+// ChangePassword handles password change for authenticated users
+func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	// Get user ID from JWT context
+	userID, ok := r.Context().Value("user_id").(uint64)
+	if !ok {
+		respondWithError(w, http.StatusUnauthorized, "UNAUTHORIZED", "User not authenticated", nil)
+		return
+	}
+
+	// Parse request
+	var req ChangePasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "INVALID_PAYLOAD", "Invalid JSON payload", nil)
+		return
+	}
+
+	// Validate input
+	if errors := h.validatePasswordChange(&req); errors != nil {
+		respondWithError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Password change validation failed", errors)
+		return
+	}
+
+	// Get user from database
+	user, err := h.userRepo.GetByID(userID)
+	if err != nil {
+		log.Printf("Error fetching user: %v", err)
+		respondWithError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch user", nil)
+		return
+	}
+
+	// Verify current password
+	if err := h.passwordService.VerifyPassword(user.PasswordHash, req.CurrentPassword); err != nil {
+		respondWithError(w, http.StatusUnauthorized, "INVALID_PASSWORD", "Current password is incorrect", nil)
+		return
+	}
+
+	// Hash new password
+	newHash, err := h.passwordService.HashPassword(req.NewPassword)
+	if err != nil {
+		log.Printf("Error hashing new password: %v", err)
+		respondWithError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to hash password", nil)
+		return
+	}
+
+	// Update password in database
+	if err := h.userRepo.UpdatePassword(userID, newHash); err != nil {
+		log.Printf("Error updating password: %v", err)
+		respondWithError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to update password", nil)
+		return
+	}
+
+	respondWithSuccess(w, http.StatusOK, "Password changed successfully", map[string]interface{}{
+		"success": true,
+	})
+}
+
+// validatePasswordChange validates password change input
+func (h *AuthHandler) validatePasswordChange(req *ChangePasswordRequest) []map[string]interface{} {
+	var errors []map[string]interface{}
+
+	if req.CurrentPassword == "" {
+		errors = append(errors, map[string]interface{}{"field": "current_password", "issue": "required"})
+	}
+
+	if req.NewPassword == "" {
+		errors = append(errors, map[string]interface{}{"field": "new_password", "issue": "required"})
+	} else if len(req.NewPassword) < 8 {
+		errors = append(errors, map[string]interface{}{"field": "new_password", "issue": "must be at least 8 characters"})
+	}
+
+	if req.CurrentPassword == req.NewPassword {
+		errors = append(errors, map[string]interface{}{"field": "new_password", "issue": "must be different from current password"})
+	}
+
+	if len(errors) > 0 {
+		return errors
+	}
+	return nil
+}

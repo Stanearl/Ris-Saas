@@ -572,6 +572,7 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	subscriptionRepo := repository.NewSubscriptionRepository(db)
 	deviceRepo := repository.NewDeviceRepository(db)
+	notificationRepo := repository.NewNotificationPreferencesRepository(db)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userRepo, passwordService, jwtService, totpService)
@@ -579,6 +580,8 @@ func main() {
 	deviceHandler := handlers.NewDeviceHandler(deviceRepo)
 	telemetryHandler := handlers.NewTelemetryHandler(db)
 	totpHandler := handlers.NewTOTPHandler(userRepo, totpService)
+	fleetHandler := handlers.NewFleetHandler(deviceRepo)
+	notificationHandler := handlers.NewNotificationHandler(notificationRepo)
 
 	// Initialize middleware
 	jwtMiddleware := middleware.NewJWTMiddleware(jwtService)
@@ -592,8 +595,8 @@ func main() {
 	router.HandleFunc("/health", handleHealthCheck).Methods("GET")
 
 	// Authentication routes (public)
-	router.HandleFunc("/api/auth/register", authHandler.Register).Methods("POST")
-	router.HandleFunc("/api/auth/login", authHandler.Login).Methods("POST")
+	router.HandleFunc("/api/auth/register", authHandler.Register).Methods("POST", "OPTIONS")
+	router.HandleFunc("/api/auth/login", authHandler.Login).Methods("POST", "OPTIONS")
 
 	// Paystack webhook (public but signature-verified)
 	router.HandleFunc("/api/webhooks/paystack", paystackHandler.HandleWebhook).Methods("POST")
@@ -611,10 +614,20 @@ func main() {
 	router.HandleFunc("/api/devices/register", jwtMiddleware.RequireAuth(deviceHandler.RegisterDevice)).Methods("POST")
 	router.HandleFunc("/api/devices", jwtMiddleware.RequireAuth(deviceHandler.GetUserDevices)).Methods("GET")
 
+	// Password management routes (JWT required)
+	router.HandleFunc("/api/auth/change-password", jwtMiddleware.RequireAuth(authHandler.ChangePassword)).Methods("POST", "OPTIONS")
+
 	// 2FA routes (JWT required)
 	router.HandleFunc("/api/auth/2fa/setup", jwtMiddleware.RequireAuth(totpHandler.Setup2FA)).Methods("POST")
 	router.HandleFunc("/api/auth/2fa/verify", jwtMiddleware.RequireAuth(totpHandler.Verify2FA)).Methods("POST")
 	router.HandleFunc("/api/auth/2fa/disable", jwtMiddleware.RequireAuth(totpHandler.Disable2FA)).Methods("POST")
+
+	// Fleet status routes (JWT required)
+	router.HandleFunc("/api/fleet/status", jwtMiddleware.RequireAuth(fleetHandler.GetFleetStatus)).Methods("GET")
+
+	// Notification preferences routes (JWT required)
+	router.HandleFunc("/api/user/notification-preferences", jwtMiddleware.RequireAuth(notificationHandler.GetPreferences)).Methods("GET")
+	router.HandleFunc("/api/user/notification-preferences", jwtMiddleware.RequireAuth(notificationHandler.UpdatePreferences)).Methods("PUT")
 
 	// Start server
 	addr := fmt.Sprintf(":%s", config.ServerPort)

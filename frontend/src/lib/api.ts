@@ -5,7 +5,10 @@ import type {
   LoginRequest, 
   LoginResponse, 
   RegisterRequest,
-  LiveDeviceData 
+  LiveDeviceData,
+  FleetStatus,
+  NotificationPreferences,
+  Device
 } from '../types/api'
 
 const api = axios.create({
@@ -127,6 +130,32 @@ export const authAPI = {
 export const deviceAPI = {
   getLiveData: async (deviceId: string) => {
     const response = await api.get<APIResponse<LiveDeviceData>>(`/devices/${deviceId}/live`)
+    return response.data.data!
+  },
+}
+
+// Fleet API
+export const fleetAPI = {
+  getDevices: async () => {
+    const response = await api.get<APIResponse<Device[]>>('/fleet/devices')
+    return response.data.data!
+  },
+  
+  getStatus: async () => {
+    const response = await api.get<APIResponse<FleetStatus>>('/fleet/status')
+    return response.data.data!
+  },
+}
+
+// Notification Preferences API
+export const notificationAPI = {
+  getPreferences: async () => {
+    const response = await api.get<APIResponse<NotificationPreferences>>('/user/notification-preferences')
+    return response.data.data!
+  },
+  
+  updatePreferences: async (preferences: Partial<NotificationPreferences>) => {
+    const response = await api.put<APIResponse<NotificationPreferences>>('/user/notification-preferences', preferences)
     return response.data.data!
   },
 }

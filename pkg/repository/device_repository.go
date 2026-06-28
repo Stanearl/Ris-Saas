@@ -16,6 +16,8 @@ type DeviceRepository interface {
 	GetByID(deviceID string) (*models.Device, error)
 	GetByUserID(userID uint64) ([]*models.Device, error)
 	GetByAPIKey(apiKey string) (*models.Device, error)
+	GetFleetStatus(userID uint64) (*models.FleetStatus, error)
+	UpdateDeviceSubscription(deviceID string, subscriptionStatus string, paystackCode *string, expiresAt *time.Time) error
 }
 
 type deviceRepository struct {
@@ -31,7 +33,7 @@ func NewDeviceRepository(db *sql.DB) DeviceRepository {
 func (r *deviceRepository) Create(userID uint64, deviceName string, hardwareTier int, loadLimitKg int) (*models.Device, error) {
 	// Generate unique device ID
 	deviceID := generateDeviceID()
-	
+
 	// Generate unique API key
 	apiKey, err := generateAPIKey()
 	if err != nil {
@@ -71,12 +73,15 @@ func (r *deviceRepository) Create(userID uint64, deviceName string, hardwareTier
 func (r *deviceRepository) GetByID(deviceID string) (*models.Device, error) {
 	query := `SELECT device_id, user_id, device_name, hardware_tier, truck_registration, 
 		industry, load_limit_kg, throttle_enabled, fuel_capacity_liters, status, 
+		subscription_status, paystack_subscription_code, subscription_expires_at, monthly_price,
 		created_at, updated_at, last_seen_at 
 		FROM devices WHERE device_id = ?`
 
 	var device models.Device
 	var userID sql.NullInt64
 	var lastSeenAt sql.NullTime
+	var paystackCode sql.NullString
+	var expiresAt sql.NullTime
 
 	err := r.db.QueryRow(query, deviceID).Scan(
 		&device.DeviceID,
@@ -89,6 +94,10 @@ func (r *deviceRepository) GetByID(deviceID string) (*models.Device, error) {
 		&device.ThrottleEnabled,
 		&device.FuelCapacityLiters,
 		&device.Status,
+		&device.SubscriptionStatus,
+		&paystackCode,
+		&expiresAt,
+		&device.MonthlyPrice,
 		&device.CreatedAt,
 		&device.UpdatedAt,
 		&lastSeenAt,
@@ -108,6 +117,12 @@ func (r *deviceRepository) GetByID(deviceID string) (*models.Device, error) {
 	if lastSeenAt.Valid {
 		device.LastSeenAt = &lastSeenAt.Time
 	}
+	if paystackCode.Valid {
+		device.PaystackSubscriptionCode = &paystackCode.String
+	}
+	if expiresAt.Valid {
+		device.SubscriptionExpiresAt = &expiresAt.Time
+	}
 
 	return &device, nil
 }
@@ -116,8 +131,9 @@ func (r *deviceRepository) GetByID(deviceID string) (*models.Device, error) {
 func (r *deviceRepository) GetByUserID(userID uint64) ([]*models.Device, error) {
 	query := `SELECT device_id, user_id, device_name, hardware_tier, truck_registration, 
 		industry, load_limit_kg, throttle_enabled, fuel_capacity_liters, status, 
+		subscription_status, paystack_subscription_code, subscription_expires_at, monthly_price,
 		created_at, updated_at, last_seen_at 
-		FROM devices WHERE user_id = ? ORDER BY created_at DESC`
+		FROM devices WHERE user_id = ? ORDER BY subscription_status DESC, created_at DESC`
 
 	rows, err := r.db.Query(query, userID)
 	if err != nil {
@@ -130,6 +146,8 @@ func (r *deviceRepository) GetByUserID(userID uint64) ([]*models.Device, error) 
 		var device models.Device
 		var userIDNull sql.NullInt64
 		var lastSeenAt sql.NullTime
+		var paystackCode sql.NullString
+		var expiresAt sql.NullTime
 
 		err := rows.Scan(
 			&device.DeviceID,
@@ -142,6 +160,10 @@ func (r *deviceRepository) GetByUserID(userID uint64) ([]*models.Device, error) 
 			&device.ThrottleEnabled,
 			&device.FuelCapacityLiters,
 			&device.Status,
+			&device.SubscriptionStatus,
+			&paystackCode,
+			&expiresAt,
+			&device.MonthlyPrice,
 			&device.CreatedAt,
 			&device.UpdatedAt,
 			&lastSeenAt,
@@ -157,6 +179,12 @@ func (r *deviceRepository) GetByUserID(userID uint64) ([]*models.Device, error) 
 		if lastSeenAt.Valid {
 			device.LastSeenAt = &lastSeenAt.Time
 		}
+		if paystackCode.Valid {
+			device.PaystackSubscriptionCode = &paystackCode.String
+		}
+		if expiresAt.Valid {
+			device.SubscriptionExpiresAt = &expiresAt.Time
+		}
 
 		devices = append(devices, &device)
 	}
@@ -168,12 +196,15 @@ func (r *deviceRepository) GetByUserID(userID uint64) ([]*models.Device, error) 
 func (r *deviceRepository) GetByAPIKey(apiKey string) (*models.Device, error) {
 	query := `SELECT device_id, user_id, device_name, hardware_tier, truck_registration, 
 		industry, load_limit_kg, throttle_enabled, fuel_capacity_liters, status, 
+		subscription_status, paystack_subscription_code, subscription_expires_at, monthly_price,
 		created_at, updated_at, last_seen_at 
 		FROM devices WHERE api_key = ?`
 
 	var device models.Device
 	var userID sql.NullInt64
 	var lastSeenAt sql.NullTime
+	var paystackCode sql.NullString
+	var expiresAt sql.NullTime
 
 	err := r.db.QueryRow(query, apiKey).Scan(
 		&device.DeviceID,
@@ -186,6 +217,10 @@ func (r *deviceRepository) GetByAPIKey(apiKey string) (*models.Device, error) {
 		&device.ThrottleEnabled,
 		&device.FuelCapacityLiters,
 		&device.Status,
+		&device.SubscriptionStatus,
+		&paystackCode,
+		&expiresAt,
+		&device.MonthlyPrice,
 		&device.CreatedAt,
 		&device.UpdatedAt,
 		&lastSeenAt,
@@ -205,6 +240,12 @@ func (r *deviceRepository) GetByAPIKey(apiKey string) (*models.Device, error) {
 	if lastSeenAt.Valid {
 		device.LastSeenAt = &lastSeenAt.Time
 	}
+	if paystackCode.Valid {
+		device.PaystackSubscriptionCode = &paystackCode.String
+	}
+	if expiresAt.Valid {
+		device.SubscriptionExpiresAt = &expiresAt.Time
+	}
 
 	return &device, nil
 }
@@ -215,6 +256,68 @@ func generateDeviceID() string {
 	randomBytes := make([]byte, 4)
 	rand.Read(randomBytes)
 	return fmt.Sprintf("DEV-%d-%s", timestamp, hex.EncodeToString(randomBytes)[:8])
+}
+
+// GetFleetStatus retrieves aggregate subscription status for user's fleet
+func (r *deviceRepository) GetFleetStatus(userID uint64) (*models.FleetStatus, error) {
+	query := `SELECT 
+		COUNT(device_id) as total_devices,
+		SUM(CASE WHEN subscription_status = 'active' THEN 1 ELSE 0 END) as active_devices,
+		SUM(CASE WHEN subscription_status = 'past_due' THEN 1 ELSE 0 END) as past_due_devices,
+		SUM(CASE WHEN subscription_status = 'canceled' THEN 1 ELSE 0 END) as canceled_devices,
+		SUM(CASE WHEN subscription_status = 'trial' THEN 1 ELSE 0 END) as trial_devices,
+		SUM(monthly_price) as total_monthly_cost
+		FROM devices WHERE user_id = ?`
+
+	var status models.FleetStatus
+	var totalCost sql.NullFloat64
+
+	err := r.db.QueryRow(query, userID).Scan(
+		&status.TotalDevices,
+		&status.ActiveDevices,
+		&status.PastDueDevices,
+		&status.CanceledDevices,
+		&status.TrialDevices,
+		&totalCost,
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get fleet status: %w", err)
+	}
+
+	if totalCost.Valid {
+		status.TotalMonthlyCost = totalCost.Float64
+	}
+
+	// Determine overall status
+	if status.TotalDevices == 0 {
+		status.OverallStatus = "inactive"
+	} else if status.ActiveDevices == status.TotalDevices {
+		status.OverallStatus = "all_active"
+	} else if status.ActiveDevices > 0 {
+		status.OverallStatus = "partial"
+	} else {
+		status.OverallStatus = "inactive"
+	}
+
+	return &status, nil
+}
+
+// UpdateDeviceSubscription updates device subscription fields
+func (r *deviceRepository) UpdateDeviceSubscription(deviceID string, subscriptionStatus string, paystackCode *string, expiresAt *time.Time) error {
+	query := `UPDATE devices 
+		SET subscription_status = ?, 
+		    paystack_subscription_code = ?, 
+		    subscription_expires_at = ?,
+		    updated_at = NOW()
+		WHERE device_id = ?`
+
+	_, err := r.db.Exec(query, subscriptionStatus, paystackCode, expiresAt, deviceID)
+	if err != nil {
+		return fmt.Errorf("failed to update device subscription: %w", err)
+	}
+
+	return nil
 }
 
 // generateAPIKey generates a secure random API key

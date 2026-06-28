@@ -16,6 +16,7 @@ type UserRepository interface {
 	UpdateSubscriptionStatus(userID uint64, status string, expiresAt *time.Time) error
 	UpdateLastLogin(userID uint64) error
 	UpdatePaystackInfo(userID uint64, customerCode, subscriptionCode *string) error
+	UpdatePassword(userID uint64, passwordHash string) error
 	EnableTOTP(userID uint64, secret string) error
 	DisableTOTP(userID uint64) error
 }
@@ -148,6 +149,18 @@ func (r *userRepository) UpdatePaystackInfo(userID uint64, customerCode, subscri
 	_, err := r.db.Exec(query, customerCode, subscriptionCode, userID)
 	if err != nil {
 		return fmt.Errorf("failed to update Paystack info: %w", err)
+	}
+
+	return nil
+}
+
+// UpdatePassword updates the user's password hash
+func (r *userRepository) UpdatePassword(userID uint64, passwordHash string) error {
+	query := `UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?`
+
+	_, err := r.db.Exec(query, passwordHash, userID)
+	if err != nil {
+		return fmt.Errorf("failed to update password: %w", err)
 	}
 
 	return nil

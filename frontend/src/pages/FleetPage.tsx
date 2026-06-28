@@ -9,14 +9,30 @@ const FleetPage = () => {
   const getStatusVariant = (status: string) => {
     switch (status) {
       case 'online':
+      case 'active':
         return 'success';
       case 'warning':
         return 'warning';
       case 'offline':
+      case 'inactive':
         return 'destructive';
       default:
         return 'default';
     }
+  };
+  
+  // Mock subscription badge - will be dynamic when backend is connected
+  const getSubscriptionBadge = (deviceId: string) => {
+    // For demo: first device is ACTIVE, second is TRIAL, third is PAST DUE
+    const index = mockDevices.findIndex(d => d.deviceId === deviceId);
+    if (index === 0) {
+      return <Badge variant="success">ACTIVE</Badge>;
+    } else if (index === 1) {
+      return <Badge variant="default">TRIAL</Badge>;
+    } else if (index === 2) {
+      return <Badge variant="warning">PAST DUE</Badge>;
+    }
+    return <Badge variant="success">ACTIVE</Badge>;
   };
   
   const formatLastSeen = (timestamp: string) => {
@@ -74,6 +90,11 @@ const FleetPage = () => {
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-500">Hardware Tier:</span>
                     <span className="font-medium text-slate-900">Tier {device.hardwareTier}</span>
+                  </div>
+                  
+                  <div className="flex justify-between text-sm items-center">
+                    <span className="text-slate-500">Subscription:</span>
+                    {getSubscriptionBadge(device.deviceId)}
                   </div>
                   
                   <div className="flex justify-between text-sm items-center">
