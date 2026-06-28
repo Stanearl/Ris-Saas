@@ -1,0 +1,52 @@
+# Cloudflare Worker Configuration
+# IoT Telemetry API Gateway
+
+name = "ris-telemetry-gateway"
+main = "worker.ts"
+compatibility_date = "2024-01-01"
+
+# Account details (replace with your actual Cloudflare account ID)
+# Get this from: https://dash.cloudflare.com/ -> Workers & Pages -> Overview
+account_id = "YOUR_CLOUDFLARE_ACCOUNT_ID"
+
+# Workers configuration
+workers_dev = true
+
+# Route configuration (uncomment and configure when ready for production)
+# routes = [
+#   { pattern = "telemetry.ris.africa/*", zone_name = "ris.africa" }
+# ]
+
+# Environment variables (secrets should be set via: wrangler secret put <KEY>)
+[vars]
+BACKEND_URL = "https://api.ris.africa/telemetry"
+BACKEND_TIMEOUT = "30000"
+
+# Secrets (set these using: wrangler secret put API_KEY)
+# API_KEY = "your-secure-api-key-here" # DO NOT commit this - use wrangler secret put
+
+# Limits and performance
+[limits]
+cpu_ms = 50
+
+# Build configuration
+[build]
+command = ""
+
+# Development configuration
+[env.development]
+name = "ris-telemetry-gateway-dev"
+vars = { BACKEND_URL = "http://localhost:8080/telemetry", BACKEND_TIMEOUT = "30000" }
+
+# Staging configuration
+[env.staging]
+name = "ris-telemetry-gateway-staging"
+vars = { BACKEND_URL = "https://staging-api.ris.africa/telemetry", BACKEND_TIMEOUT = "30000" }
+
+# Production configuration
+[env.production]
+name = "ris-telemetry-gateway-prod"
+vars = { BACKEND_URL = "https://api.ris.africa/telemetry", BACKEND_TIMEOUT = "30000" }
+# routes = [
+#   { pattern = "telemetry.ris.africa/*", zone_name = "ris.africa" }
+# ]

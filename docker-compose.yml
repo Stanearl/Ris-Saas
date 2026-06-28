@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  database:
+    image: mysql:8.0
+    container_name: ris-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${DB_NAME:-iot_telemetry}
+      MYSQL_USER: ${DB_USER:-iot_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-iot_password}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./schema_auth.sql:/docker-entrypoint-initdb.d/02-schema_auth.sql
+      - ./schema_device_registration.sql:/docker-entrypoint-initdb.d/03-schema_device_registration.sql
+      - ./schema_2fa.sql:/docker-entrypoint-initdb.d/04-schema_2fa.sql
+    ports:
+      - "3306:3306"
+    networks:
+      - ris-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Go Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ris-backend
+    restart: unless-stopped
+    environment:
+      # Database Configuration
+      DB_HOST: database
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-iot_user}
+      DB_PASSWORD: ${DB_PASSWORD:-iot_password}
+      DB_NAME: ${DB_NAME:-iot_telemetry}
+      
+      # Server Configuration
+      SERVER_PORT: 8080
+      
+      # JWT Configuration
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ISSUER: ${JWT_ISSUER:-iot-telemetry-platform}
+      JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-168}
+      
+      # Paystack Configuration
+      PAYSTACK_SECRET_KEY: ${PAYSTACK_SECRET_KEY}
+    ports:
+      - "8080:8080"
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - ris-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  ris-network:
+    driver: bridge
