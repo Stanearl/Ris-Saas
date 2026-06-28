@@ -60,7 +60,7 @@ const generateMockTelemetryData = (deviceId: string): TelemetryHistoryResponse =
 };
 
 const WeightChart = ({ deviceId }: WeightChartProps) => {
-  const { data: telemetryData, isLoading, error } = useQuery({
+  const { data: telemetryData, isLoading } = useQuery({
     queryKey: ['telemetry-history', deviceId],
     queryFn: async () => {
       try {
