@@ -91,7 +91,7 @@ const SettingsPage = () => {
             </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
             <div>
               <label className="text-sm font-medium text-slate-700 mb-1 block">
                 Full Name
@@ -143,7 +143,7 @@ const SettingsPage = () => {
             </Badge>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-2">
             <div className="p-4 border border-slate-200 rounded-lg">
               <p className="text-sm text-slate-500">Devices</p>
               <p className="text-2xl font-bold text-slate-900 mt-1">3</p>

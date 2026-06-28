@@ -12,9 +12,9 @@ const MainLayout = ({ children }: MainLayoutProps) => {
       <Sidebar />
       <TopBar />
       
-      {/* Main Content Area */}
-      <div className="ml-64 pt-16">
-        <main className="p-6">
+      {/* Main Content Area - Responsive margins and padding */}
+      <div className="ml-0 md:ml-64 pt-16">
+        <main className="p-4 md:p-6">
           {children}
         </main>
       </div>

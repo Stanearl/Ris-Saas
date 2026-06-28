@@ -1,9 +1,11 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Truck, Settings } from 'lucide-react';
+import { Home, Truck, Settings, X } from 'lucide-react';
 import { mockUser } from '@/lib/mockData';
+import { useState } from 'react';
 
 const Sidebar = () => {
   const location = useLocation();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const navItems = [
     { path: '/overview', label: 'Overview', icon: Home },
@@ -14,7 +16,36 @@ const Sidebar = () => {
   const isActive = (path: string) => location.pathname.startsWith(path);
   
   return (
-    <div className="w-64 bg-white border-r border-slate-200 h-screen flex flex-col fixed left-0 top-0">
+    <>
+      {/* Mobile Menu Button */}
+      <button
+        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-lg border border-slate-200"
+      >
+        <Truck className="w-6 h-6 text-blue-600" />
+      </button>
+
+      {/* Overlay for mobile */}
+      {isMobileMenuOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div className={`
+        w-64 bg-white border-r border-slate-200 h-screen flex flex-col fixed left-0 top-0 z-40
+        transform transition-transform duration-300 ease-in-out
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
+        {/* Close button for mobile */}
+        <button
+          onClick={() => setIsMobileMenuOpen(false)}
+          className="md:hidden absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-lg"
+        >
+          <X className="w-5 h-5 text-slate-600" />
+        </button>
       {/* Logo Area */}
       <div className="p-6 border-b border-slate-200">
         <div className="flex items-center gap-3">
@@ -39,6 +70,7 @@ const Sidebar = () => {
               <li key={item.path}>
                 <Link
                   to={item.path}
+                  onClick={() => setIsMobileMenuOpen(false)}
                   className={`
                     flex items-center gap-3 px-4 py-3 rounded-lg transition-colors
                     ${active 
@@ -73,6 +105,7 @@ const Sidebar = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

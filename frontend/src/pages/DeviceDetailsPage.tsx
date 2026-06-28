@@ -89,8 +89,8 @@ const DeviceDetailsPage = () => {
         <TruckSchematic tier={device.hardwareTier} />
       </Card>
       
-      {/* Middle Section - Weight Display and Configuration */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Middle Section - Weight Display and Configuration - Responsive */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Left: Master CAN Display */}
         <Card className="p-6">
           <h3 className="text-sm font-medium text-slate-600 mb-2">
@@ -171,8 +171,8 @@ const DeviceDetailsPage = () => {
         </Card>
       </div>
       
-      {/* Lower Middle Section - Map and Fuel/Speed */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Lower Middle Section - Map and Fuel/Speed - Responsive */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Left: GPS Map */}
         <DeviceMap device={device} />
         
