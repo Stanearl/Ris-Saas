@@ -1,6 +1,5 @@
 import { Truck, AlertTriangle, WifiOff, CheckCircle } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
 import { getFleetStats } from '@/lib/mockData';
 
 const OverviewPage = () => {

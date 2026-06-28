@@ -191,7 +191,7 @@ export const getDeviceById = (id: string): Device | undefined => {
 };
 
 // Get weight data for a device
-export const getWeightData = (deviceId: string): WeightDataPoint[] => {
+export const getWeightData = (_deviceId: string): WeightDataPoint[] => {
   return generateWeightData();
 };
 

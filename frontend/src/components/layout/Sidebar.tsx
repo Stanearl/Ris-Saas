@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Truck, Settings, User } from 'lucide-react';
+import { Home, Truck, Settings } from 'lucide-react';
 import { mockUser } from '@/lib/mockData';
 
 const Sidebar = () => {
