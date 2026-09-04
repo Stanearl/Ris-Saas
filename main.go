@@ -661,7 +661,6 @@ func main() {
 
 	// Setup router
 	router := mux.NewRouter()
-	router.Use(corsMiddleware)
 	router.Use(loggingMiddleware)
 
 	// Public routes
@@ -713,7 +712,15 @@ func main() {
 	log.Printf("🔐 JWT Expiration: %d hours", config.JWTExpirationHours)
 	log.Printf("💳 Paystack Integration: %s", map[bool]string{true: "Enabled", false: "Disabled"}[config.PaystackSecretKey != ""])
 
-	if err := http.ListenAndServe(addr, router); err != nil {
+	// corsMiddleware MUST wrap the router (not be registered via router.Use()).
+	// gorilla/mux only invokes router-level middlewares AFTER a route match
+	// succeeds (path + method). Any route registered without an explicit
+	// "OPTIONS" method (e.g. GET /api/devices) never matches a preflight
+	// OPTIONS request, so router.Use(corsMiddleware) silently skips it and
+	// the browser sees no Access-Control-Allow-Origin header -> CORS block.
+	// Wrapping here guarantees every request, matched or not, passes through
+	// CORS handling first.
+	if err := http.ListenAndServe(addr, corsMiddleware(router)); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 }
