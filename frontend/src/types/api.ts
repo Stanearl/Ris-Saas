@@ -16,12 +16,13 @@ export interface User {
 export interface Device {
   device_id: string
   device_name: string
+  hardware_tier: number
   truck_registration: string
   industry: string
   load_limit_kg: number
   throttle_enabled: boolean
   fuel_capacity_liters: number
-  status: string
+  status: 'active' | 'inactive' | 'maintenance'
   subscription_status: 'active' | 'past_due' | 'canceled' | 'trial'
   paystack_subscription_code: string | null
   subscription_expires_at: string | null
@@ -77,7 +78,7 @@ export interface RegisterRequest {
 export type HardwareTier = 'Tier 1' | 'Tier 2' | 'Tier 3'
 
 export interface DeviceWithTier extends Device {
-  hardware_tier: HardwareTier
+  hardware_tier_label: HardwareTier
 }
 
 // Determine hardware tier based on available sensors

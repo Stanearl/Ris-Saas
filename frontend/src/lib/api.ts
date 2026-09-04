@@ -11,8 +11,15 @@ import type {
   Device
 } from '../types/api'
 
+// Production (Cloudflare Pages) does not proxy /api to the Go backend —
+// only the local Vite dev server does (see vite.config.ts). In production
+// we must hit the Hetzner backend directly at api.ris.africa.
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.PROD ? 'https://api.ris.africa/api' : '/api')
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -136,11 +143,12 @@ export const deviceAPI = {
 
 // Fleet API
 export const fleetAPI = {
+  // Matches Go route: GET /api/devices (deviceHandler.GetUserDevices)
   getDevices: async () => {
-    const response = await api.get<APIResponse<Device[]>>('/fleet/devices')
-    return response.data.data!
+    const response = await api.get<APIResponse<{ devices: Device[]; count: number }>>('/devices')
+    return response.data.data!.devices
   },
-  
+
   getStatus: async () => {
     const response = await api.get<APIResponse<FleetStatus>>('/fleet/status')
     return response.data.data!

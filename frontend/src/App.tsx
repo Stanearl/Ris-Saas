@@ -6,6 +6,7 @@ import RegisterPage from './pages/RegisterPage'
 import OverviewPage from './pages/OverviewPage'
 import FleetPage from './pages/FleetPage'
 import DeviceDetailsPage from './pages/DeviceDetailsPage'
+import DashboardPage from './pages/DashboardPage'
 import SettingsPage from './pages/SettingsPage'
 import { Toaster } from './components/ui/Toaster'
 
@@ -43,8 +44,13 @@ function App() {
           element={token ? <MainLayout><SettingsPage /></MainLayout> : <Navigate to="/login" />} 
         />
         
+        {/* Live single-device telemetry dashboard (DEV-TRK-001) */}
+        <Route
+          path="/dashboard"
+          element={token ? <DashboardPage /> : <Navigate to="/login" />}
+        />
+
         {/* Redirects */}
-        <Route path="/dashboard" element={<Navigate to="/overview" />} />
         <Route path="/" element={<Navigate to="/overview" />} />
       </Routes>
     </BrowserRouter>
