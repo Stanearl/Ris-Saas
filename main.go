@@ -77,6 +77,19 @@ type BatchTelemetryRequest struct {
 	Readings []TelemetryReading `json:"readings"`
 }
 
+// SugarWANDemoTelemetryRequest matches the "Wizard of Oz" Particle Console
+// webhook payload used for the SugarWAN stakeholder demo (device: Tango).
+// DEMO ONLY - bypasses the normal hardware telemetry schema.
+type SugarWANDemoTelemetryRequest struct {
+	DeviceID   string  `json:"device_id"`
+	Timestamp  string  `json:"timestamp"`
+	WeightKg   float64 `json:"weight_kg"`
+	Latitude   float64 `json:"latitude"`
+	Longitude  float64 `json:"longitude"`
+	SpeedKmh   float64 `json:"speed_kmh"`
+	FuelLiters float64 `json:"fuel_liters"`
+}
+
 type APIResponse struct {
 	Status  string      `json:"status"`
 	Message string      `json:"message,omitempty"`
@@ -121,11 +134,21 @@ func initDB(config Config) error {
 	return nil
 }
 
+// DEMO ONLY: static bearer token bypass for SugarWAN Wizard-of-Oz Particle webhook.
+// Remove demoBearerToken check before production hardware rollout.
+const demoBearerToken = "Bearer sugarwan-demo-2026"
+
 // Middleware: Simple API Key authentication for device ingestion
 func deviceAuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		apiKey := r.Header.Get("X-API-Key")
 		authHeader := r.Header.Get("Authorization")
+
+		// DEMO BYPASS: static bearer token, skips HMAC/JWT validation entirely.
+		if authHeader == demoBearerToken {
+			next(w, r)
+			return
+		}
 
 		// Simple validation (in production, validate against database/cache)
 		if apiKey == "" && authHeader == "" {
@@ -164,7 +187,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 
 		// Handle preflight requests
 		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusNoContent)
+			w.WriteHeader(http.StatusOK)
 			return
 		}
 
@@ -197,6 +220,56 @@ func handleTelemetry(w http.ResponseWriter, r *http.Request) {
 	} else {
 		handleSingleTelemetry(w, rawPayload)
 	}
+}
+
+// Handler: POST /v1/demo/telemetry
+// DEMO ONLY - SugarWAN "Wizard of Oz" ingestion endpoint for Particle Console
+// webhook payloads. Parses the simplified JSON schema and writes it into the
+// standard telemetry table so it renders on the dashboard immediately.
+func handleSugarWANDemoTelemetry(w http.ResponseWriter, r *http.Request) {
+	var req SugarWANDemoTelemetryRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "INVALID_PAYLOAD", "Invalid JSON payload", nil)
+		return
+	}
+
+	if req.DeviceID == "" {
+		respondWithError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "device_id is required", nil)
+		return
+	}
+
+	// Parse timestamp; fall back to server time if unparseable (demo tolerance).
+	timestamp := time.Now().UTC()
+	if req.Timestamp != "" {
+		if parsed, err := time.Parse(time.RFC3339, req.Timestamp); err == nil {
+			timestamp = parsed
+		}
+	}
+
+	if !deviceExists(req.DeviceID) {
+		respondWithError(w, http.StatusNotFound, "DEVICE_NOT_FOUND", fmt.Sprintf("Device '%s' not found in registry", req.DeviceID), nil)
+		return
+	}
+
+	speed := req.SpeedKmh
+	fuel := req.FuelLiters
+
+	recordID, err := insertTelemetry(req.DeviceID, timestamp, int(req.WeightKg), req.Latitude, req.Longitude,
+		&fuel, &speed, false)
+	if err != nil {
+		log.Printf("Error inserting demo telemetry: %v", err)
+		respondWithError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "An internal error occurred while processing your request", nil)
+		return
+	}
+
+	updateDeviceLastSeen(req.DeviceID, timestamp)
+
+	respondWithSuccess(w, http.StatusCreated, "Demo telemetry data received", map[string]interface{}{
+		"device_id":    req.DeviceID,
+		"timestamp":    timestamp,
+		"record_id":    recordID,
+		"processed_at": time.Now().UTC(),
+	})
 }
 
 // Handle single telemetry payload
@@ -605,6 +678,9 @@ func main() {
 	router.HandleFunc("/v1/telemetry", deviceAuthMiddleware(handleTelemetry)).Methods("POST")
 	router.HandleFunc("/v1/devices/{device_id}/heartbeat", deviceAuthMiddleware(handleHeartbeat)).Methods("POST")
 	router.HandleFunc("/v1/devices/{device_id}/config", deviceAuthMiddleware(handleGetDeviceConfig)).Methods("GET")
+
+	// DEMO ONLY: SugarWAN "Wizard of Oz" ingestion route for Particle Console webhook
+	router.HandleFunc("/v1/demo/telemetry", deviceAuthMiddleware(handleSugarWANDemoTelemetry)).Methods("POST")
 
 	// Protected dashboard routes (JWT + active subscription required)
 	router.HandleFunc("/api/devices/{device_id}/live", jwtMiddleware.RequireActiveSubscription(handleGetDeviceLive)).Methods("GET")
