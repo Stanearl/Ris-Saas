@@ -47,7 +47,7 @@ CREATE TABLE telemetry (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     device_id VARCHAR(50) NOT NULL,
     timestamp TIMESTAMP(3) NOT NULL,  -- Millisecond precision
-    weight_kg INT UNSIGNED NOT NULL,
+    weight_kg DECIMAL(10,3) UNSIGNED NOT NULL,
     latitude DECIMAL(10, 7) NOT NULL,  -- ~1cm precision
     longitude DECIMAL(10, 7) NOT NULL, -- ~1cm precision
     fuel_level_liters DECIMAL(8,2) NULL,

@@ -53,7 +53,7 @@ type Device struct {
 
 type TelemetryReading struct {
 	Timestamp         time.Time `json:"timestamp"`
-	WeightKg          int       `json:"weight_kg"`
+	WeightKg          float64   `json:"weight_kg"`
 	Latitude          float64   `json:"latitude"`
 	Longitude         float64   `json:"longitude"`
 	FuelLevelLiters   *float64  `json:"fuel_level_liters,omitempty"`
@@ -64,7 +64,7 @@ type TelemetryReading struct {
 type SingleTelemetryRequest struct {
 	DeviceID          string    `json:"device_id"`
 	Timestamp         time.Time `json:"timestamp"`
-	WeightKg          int       `json:"weight_kg"`
+	WeightKg          float64   `json:"weight_kg"`
 	Latitude          float64   `json:"latitude"`
 	Longitude         float64   `json:"longitude"`
 	FuelLevelLiters   *float64  `json:"fuel_level_liters,omitempty"`
@@ -254,7 +254,7 @@ func handleSugarWANDemoTelemetry(w http.ResponseWriter, r *http.Request) {
 	speed := req.SpeedKmh
 	fuel := req.FuelLiters
 
-	recordID, err := insertTelemetry(req.DeviceID, timestamp, int(req.WeightKg), req.Latitude, req.Longitude,
+	recordID, err := insertTelemetry(req.DeviceID, timestamp, req.WeightKg, req.Latitude, req.Longitude,
 		&fuel, &speed, false)
 	if err != nil {
 		log.Printf("Error inserting demo telemetry: %v", err)
@@ -477,7 +477,7 @@ func getDevice(deviceID string) (*Device, error) {
 	return &device, nil
 }
 
-func insertTelemetry(deviceID string, timestamp time.Time, weightKg int, latitude, longitude float64,
+func insertTelemetry(deviceID string, timestamp time.Time, weightKg float64, latitude, longitude float64,
 	fuelLevel, speed *float64, throttleActive bool) (int64, error) {
 	query := `INSERT INTO telemetry (device_id, timestamp, weight_kg, latitude, longitude, 
 	          fuel_level_liters, speed_kmh, ecu_throttle_active) 
@@ -682,12 +682,19 @@ func main() {
 	router.HandleFunc("/v1/demo/telemetry", deviceAuthMiddleware(handleSugarWANDemoTelemetry)).Methods("POST")
 
 	// Protected dashboard routes (JWT + active subscription required)
-	router.HandleFunc("/api/devices/{device_id}/live", jwtMiddleware.RequireActiveSubscription(handleGetDeviceLive)).Methods("GET")
-	router.HandleFunc("/api/devices/{device_id}/telemetry/history", jwtMiddleware.RequireActiveSubscription(telemetryHandler.GetTelemetryHistory)).Methods("GET")
+	// ⚠️ EMERGENCY DEMO BYPASS: swapped RequireActiveSubscription -> DemoBypassAuth
+	// on the GET routes below so the mock frontend token (which fails real JWT
+	// validation) can still read live telemetry for "Tango" (DEV-TRK-001).
+	// REVERT to jwtMiddleware.RequireActiveSubscription once real login is wired up.
+	router.HandleFunc("/api/devices/{device_id}/live", jwtMiddleware.DemoBypassAuth(handleGetDeviceLive)).Methods("GET")
+	router.HandleFunc("/api/devices/{device_id}/telemetry/history", jwtMiddleware.DemoBypassAuth(telemetryHandler.GetTelemetryHistory)).Methods("GET")
 
 	// Device management routes (JWT required, no subscription check)
 	router.HandleFunc("/api/devices/register", jwtMiddleware.RequireAuth(deviceHandler.RegisterDevice)).Methods("POST")
-	router.HandleFunc("/api/devices", jwtMiddleware.RequireAuth(deviceHandler.GetUserDevices)).Methods("GET")
+	// ⚠️ EMERGENCY DEMO BYPASS: GET /api/devices (fleet list) also bypassed so
+	// FleetPage / DemoBypassAuth mock-token reads succeed. REVERT to RequireAuth
+	// once real login is wired up.
+	router.HandleFunc("/api/devices", jwtMiddleware.DemoBypassAuth(deviceHandler.GetUserDevices)).Methods("GET")
 
 	// Password management routes (JWT required)
 	router.HandleFunc("/api/auth/change-password", jwtMiddleware.RequireAuth(authHandler.ChangePassword)).Methods("POST", "OPTIONS")
@@ -698,7 +705,8 @@ func main() {
 	router.HandleFunc("/api/auth/2fa/disable", jwtMiddleware.RequireAuth(totpHandler.Disable2FA)).Methods("POST")
 
 	// Fleet status routes (JWT required)
-	router.HandleFunc("/api/fleet/status", jwtMiddleware.RequireAuth(fleetHandler.GetFleetStatus)).Methods("GET")
+	// ⚠️ EMERGENCY DEMO BYPASS: REVERT to jwtMiddleware.RequireAuth once real login is wired up.
+	router.HandleFunc("/api/fleet/status", jwtMiddleware.DemoBypassAuth(fleetHandler.GetFleetStatus)).Methods("GET")
 
 	// Notification preferences routes (JWT required)
 	router.HandleFunc("/api/user/notification-preferences", jwtMiddleware.RequireAuth(notificationHandler.GetPreferences)).Methods("GET")

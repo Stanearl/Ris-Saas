@@ -24,7 +24,7 @@ func NewTelemetryHandler(db *sql.DB) *TelemetryHandler {
 // TelemetryDataPoint represents a single telemetry data point for charts
 type TelemetryDataPoint struct {
 	Timestamp      string   `json:"timestamp"`
-	WeightKg       int      `json:"weight_kg"`
+	WeightKg       float64  `json:"weight_kg"`
 	Latitude       float64  `json:"latitude"`
 	Longitude      float64  `json:"longitude"`
 	FuelLevel      *float64 `json:"fuel_level_liters,omitempty"`
