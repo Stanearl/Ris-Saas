@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge';
 import { fleetAPI, deviceAPI } from '@/lib/api';
 import type { Device } from '@/types/api';
 import { RegisterDeviceModal } from '@/components/device/RegisterDeviceModal';
+import { formatWeightKg } from '@/lib/utils';
 
 const getStatusVariant = (status: Device['status']) => {
   switch (status) {
@@ -49,10 +50,6 @@ const formatLastSeen = (timestamp: string | null) => {
   return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
 };
 
-// Formats a kg weight with up to 3 decimal places, trimming trailing zeros
-// so 0.145 -> "0.145 kg" and 168.2 -> "168.2 kg".
-const formatWeightKg = (weightKg: number) => `${Number(weightKg.toFixed(3))} kg`;
-
 // Live telemetry (weight/speed) for a single device card. Isolated per-card
 // so one device's failed/missing telemetry doesn't block the fleet grid.
 function FleetDeviceStats({ deviceId }: { deviceId: string }) {
@@ -85,7 +82,7 @@ function FleetDeviceStats({ deviceId }: { deviceId: string }) {
       <div>
         <p className="text-xs text-slate-500">Weight</p>
         <p className="text-sm font-semibold text-slate-900">
-          {formatWeightKg(data.reading.weight_kg)}
+          {formatWeightKg(data.reading.weight_kg)} kg
         </p>
       </div>
       <div>

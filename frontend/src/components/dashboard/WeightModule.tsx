@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Scale, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card'
-import { formatNumber } from '../../lib/utils'
+import { formatNumber, formatWeightKg } from '../../lib/utils'
 import { cn } from '../../lib/utils'
 
 interface WeightModuleProps {
@@ -20,7 +20,7 @@ export default function WeightModule({ currentWeight, legalLimit }: WeightModule
   useEffect(() => {
     if (isOverloaded && !prevOverloadedRef.current) {
       toast.error('⚠️ VEHICLE OVERLOADED', {
-        description: `Exceeds legal limit by ${formatNumber(currentWeight - legalLimit)} kg. Immediate action required!`,
+        description: `Exceeds legal limit by ${formatWeightKg(currentWeight - legalLimit)} kg. Immediate action required!`,
         duration: 8000,
       })
     } else if (isNearLimit && !prevOverloadedRef.current && !isOverloaded) {
@@ -57,11 +57,11 @@ export default function WeightModule({ currentWeight, legalLimit }: WeightModule
             isNearLimit && "text-yellow-500",
             !isOverloaded && !isNearLimit && "text-primary"
           )}>
-            {formatNumber(currentWeight)}
+            {formatWeightKg(currentWeight)}
             <span className="text-4xl ml-2 text-muted-foreground">kg</span>
           </div>
           <div className="mt-4 text-2xl text-muted-foreground">
-            Legal Limit: {formatNumber(legalLimit)} kg
+            Legal Limit: {formatWeightKg(legalLimit)} kg
           </div>
         </div>
 
@@ -84,7 +84,7 @@ export default function WeightModule({ currentWeight, legalLimit }: WeightModule
             </span>
             {isOverloaded && (
               <span className="font-bold text-red-500">
-                OVERLOADED by {formatNumber(currentWeight - legalLimit)} kg
+                OVERLOADED by {formatWeightKg(currentWeight - legalLimit)} kg
               </span>
             )}
           </div>
